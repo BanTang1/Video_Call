@@ -1,14 +1,8 @@
-package com.zhanghao.h265_video_call;
+package com.zhanghao.app_chat_b;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Rect;
 import android.util.Log;
-import android.view.Surface;
 
-import androidx.annotation.NonNull;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -100,8 +94,12 @@ public class CameraXUtils {
     private void processImage(ImageProxy image) {
         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
         byte[] data = new byte[buffer.remaining()];
+
         buffer.get(data);
 
+        if (cameraXCallback != null) {
+            cameraXCallback.onImageAvailable(data);
+        }
         image.close();
     }
 

@@ -1,10 +1,11 @@
-package com.zhanghao.h265_video_call;
+package com.zhanghao.app_chat_b;
 
 import android.Manifest;
 import android.media.MediaCodec;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 import androidx.activity.result.ActivityResultCallback;
@@ -14,24 +15,26 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.zhanghao.h265_video_call.databinding.MainLayoutBinding;
+
+import com.zhanghao.app_chat_b.databinding.MainLayoutBinding;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+
 /**
  * 视屏A端
  */
-public class MainActivity extends AppCompatActivity implements CameraXUtils.CameraXCallback, ChatASocket.WebSocketCallback {
+public class MainActivity extends AppCompatActivity implements CameraXUtils.CameraXCallback, ChatBSocket.WebSocketCallback {
     private static final String TAG = "zh___MainActivity";
     private MainLayoutBinding binding;
     private CameraXUtils cameraXUtils;
     private MediaCodecUtils mediaCodecUtils;
     private MediaCodec enMediaCodec, deMediaCodec;
 
-    private ChatASocket chatASocket;
+    private ChatBSocket socketPull;
 
     private HandlerThread handlerThread;
     private Handler backgroundHandler;
@@ -78,8 +81,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
                 e.printStackTrace();
             }
         }
-        chatASocket.close();
-
+        socketPull.close();
     }
 
     /**
@@ -111,8 +113,8 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
             }
         });
 
-        chatASocket = new ChatASocket();
-        chatASocket.start();
+        socketPull = new ChatBSocket();
+        socketPull.start();
 
         handlerThread = new HandlerThread("ImageProcessingThread");
         handlerThread.start();
@@ -137,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
                     encodeYUVToH265(localData);
                 }
             });
-        }
+        };
     }
 
     /**
@@ -174,7 +176,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
         // 即使只提交了一份数据到解码器的输入缓冲区，但解码器的输出并不一定是一一对应的，它可能在一次解码操作中产生多个输出缓冲区
         while (outputBufferID >= 0) {
             deMediaCodec.releaseOutputBuffer(outputBufferID, true);
-            outputBufferID = deMediaCodec.dequeueOutputBuffer(bufferInfo,10000);
+            outputBufferID = deMediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
         }
     }
 
@@ -193,7 +195,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
         }
 
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-        int outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
+        int outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 100000);
         while (outputBufferIndex >= 0) {
             ByteBuffer outputBuffer = enMediaCodec.getOutputBuffer(outputBufferIndex);
             byte[] outputData = new byte[bufferInfo.size];
@@ -225,14 +227,14 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
                 configAndIFrame.put(configData);
                 outputBuffer.rewind();
                 configAndIFrame.put(outputBuffer);
-                chatASocket.sendData(configAndIFrame.array());
+                socketPull.sendData(configAndIFrame.array());
                 break;
             // 其余信息正常发送
             default:
                 byte[] otherData = new byte[bufferInfo.size];
                 outputBuffer.rewind();
                 outputBuffer.get(otherData);
-                chatASocket.sendData(otherData);
+                socketPull.sendData(otherData);
                 break;
         }
     }
