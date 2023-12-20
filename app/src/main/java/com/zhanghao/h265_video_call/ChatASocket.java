@@ -31,7 +31,7 @@ public class ChatASocket {
         void onMessage(ByteBuffer message);
     }
 
-    private WebSocketServer webSocketServer = new WebSocketServer(new InetSocketAddress(9522)) {
+    private WebSocketServer webSocketServer = new WebSocketServer(new InetSocketAddress(9525)) {
         @Override
         public void onOpen(WebSocket webSocket, ClientHandshake clientHandshake) {
             ChatASocket.this.webSocket = webSocket;

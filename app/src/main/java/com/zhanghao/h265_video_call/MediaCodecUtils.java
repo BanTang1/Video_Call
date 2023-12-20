@@ -12,8 +12,12 @@ import java.io.IOException;
  */
 public class MediaCodecUtils {
 
-    private int width = 720;
-    private int height = 1080;
+    /**
+     * 此处分辨率最好由CameraX 中的 ImageProxy image传递，以确保以正确的分辨率编码
+     * 此Demo手动指定
+     */
+    private int width = 480;
+    private int height = 640;
 
 
     public MediaCodec getEnMediaCodec() {
@@ -24,7 +28,7 @@ public class MediaCodecUtils {
             mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 20);
             mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 
-            MediaCodec mediaCodec = MediaCodec.createEncoderByType("video/hevc");
+            MediaCodec mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_HEVC);
             mediaCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             mediaCodec.start();
             return mediaCodec;

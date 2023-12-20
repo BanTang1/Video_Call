@@ -1,6 +1,7 @@
 package com.zhanghao.app_chat_b;
 
 import android.Manifest;
+import android.content.Context;
 import android.media.MediaCodec;
 import android.os.Bundle;
 import android.os.Handler;
@@ -113,7 +114,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
             }
         });
 
-        socketPull = new ChatBSocket();
+        socketPull = new ChatBSocket(this);
         socketPull.start();
 
         handlerThread = new HandlerThread("ImageProcessingThread");
@@ -139,7 +140,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
                     encodeYUVToH265(localData);
                 }
             });
-        };
+        }
     }
 
     /**
@@ -186,24 +187,26 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
      * @param imageData
      */
     private void encodeYUVToH265(byte[] imageData) {
-        int inputBufferIndex = enMediaCodec.dequeueInputBuffer(10000);
+        int inputBufferIndex = enMediaCodec.dequeueInputBuffer(1000);
         if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = enMediaCodec.getInputBuffer(inputBufferIndex);
             inputBuffer.clear();
-            inputBuffer.put(imageData);
-            enMediaCodec.queueInputBuffer(inputBufferIndex, 0, imageData.length, System.currentTimeMillis(), 0);
+            int length = Math.min(inputBuffer.remaining(), imageData.length);
+            inputBuffer.rewind();
+            inputBuffer.put(imageData, 0, length);
+            enMediaCodec.queueInputBuffer(inputBufferIndex, 0, length, System.currentTimeMillis(), 0);
         }
 
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-        int outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 100000);
+        int outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 1000);
         while (outputBufferIndex >= 0) {
             ByteBuffer outputBuffer = enMediaCodec.getOutputBuffer(outputBufferIndex);
             byte[] outputData = new byte[bufferInfo.size];
             outputBuffer.get(outputData);
             handleData(bufferInfo, outputBuffer);
-            writeFile(outputData);
+//            writeFile(outputData);
             enMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
-            outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
+            outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 1000);
         }
     }
 

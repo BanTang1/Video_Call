@@ -1,14 +1,8 @@
 package com.zhanghao.h265_video_call;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Rect;
 import android.util.Log;
-import android.view.Surface;
 
-import androidx.annotation.NonNull;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -32,9 +26,6 @@ public class CameraXUtils {
     private ImageAnalysis imageAnalysis;
     private CameraXCallback cameraXCallback;
     private PreviewView previewView;
-
-    private int width = 720;
-    private int height = 1080;
 
     public CameraXUtils(Context context, PreviewView previewView) {
         this(context, null, previewView);
@@ -79,7 +70,7 @@ public class CameraXUtils {
         cameraProvider.unbindAll();
 
         imageAnalysis = new ImageAnalysis.Builder()
-                .setTargetResolution(new android.util.Size(width, height))
+//                .setTargetResolution(new android.util.Size(width, height))    // 使用默认分辨率
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build();
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), this::processImage);
@@ -93,15 +84,40 @@ public class CameraXUtils {
     }
 
     /**
-     * 提取并处理YUV数据， 数据格式为 YUV_420_888
+     * 提取并处理YUV数据， 整理数据格式为 YUV420P
      *
      * @param image
      */
     private void processImage(ImageProxy image) {
-        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-        byte[] data = new byte[buffer.remaining()];
-        buffer.get(data);
+        ByteBuffer bufferY = image.getPlanes()[0].getBuffer();
+        ByteBuffer bufferU = image.getPlanes()[1].getBuffer();
+        ByteBuffer bufferV = image.getPlanes()[2].getBuffer();
 
+        byte[] dataY = new byte[bufferY.remaining()];
+        byte[] dataU = new byte[bufferU.remaining()];
+        byte[] dataV = new byte[bufferV.remaining()];
+
+        bufferY.get(dataY);
+        bufferU.get(dataU);
+        bufferV.get(dataV);
+
+        byte[] yuvData = new byte[dataY.length + dataU.length + dataV.length];
+        System.arraycopy(dataY, 0, yuvData, 0, dataY.length);
+        System.arraycopy(dataU, 0, yuvData, dataY.length, dataU.length);
+        System.arraycopy(dataV, 0, yuvData, dataY.length + dataU.length, dataV.length);
+
+        // 数据旋转 需与编解码器的分辨率保持一致
+        byte[] rotateYuvData = rotateYUV420PCounterClockwise90(yuvData, image.getWidth(), image.getHeight());
+
+        // 数据的实际宽高
+        int width = image.getWidth();
+        int height = image.getHeight();
+//        Log.i(TAG, "processImage: width = " + width);
+//        Log.i(TAG, "processImage: height = " + height);
+
+        if (cameraXCallback != null) {
+            cameraXCallback.onImageAvailable(rotateYuvData);
+        }
         image.close();
     }
 
@@ -121,6 +137,65 @@ public class CameraXUtils {
         void onImageAvailable(byte[] imageData);
     }
 
+
+    /**
+     * 顺时针旋转90度
+     * @param input YUV420P
+     * @param width
+     * @param height
+     * @return
+     */
+    private byte[] rotateYUV420PClockwise90(byte[] input, int width, int height) {
+        byte[] output = new byte[width * height * 3 / 2];
+
+        // 旋转Y分量
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < height; j++) {
+                output[i * height + height - 1 - j] = input[j * width + i];
+            }
+        }
+
+        // 旋转Cb和Cr分量
+        int offset = width * height;
+        for (int i = 0; i < width / 2; i++) {
+            for (int j = 0; j < height / 2; j++) {
+                output[offset + i * height / 2 + height / 2 - 1 - j] = input[offset + j * width / 2 + i];
+                output[offset + width * height / 4 + i * height / 2 + height / 2 - 1 - j] = input[offset + width * height / 4 + j * width / 2 + i];
+            }
+        }
+
+        return output;
+    }
+
+
+    /**
+     * 逆时针旋转90度
+     * @param input     YUV420P
+     * @param width
+     * @param height
+     * @return
+     */
+    private byte[] rotateYUV420PCounterClockwise90(byte[] input, int width, int height) {
+        byte[] output = new byte[width * height * 3 / 2];
+
+        // 旋转Y分量
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < height; j++) {
+                output[(width - 1 - i) * height + j] = input[j * width + i];
+            }
+        }
+
+        // 旋转Cb和Cr分量
+        int offset = width * height;
+        for (int i = 0; i < width / 2; i++) {
+            for (int j = 0; j < height / 2; j++) {
+                output[offset + (width / 2 - 1 - i) * height / 2 + j] = input[offset + j * width / 2 + i];
+                output[offset + width * height / 4 + (width / 2 - 1 - i) * height / 2 + j] = input[offset + width * height / 4 + j * width / 2 + i];
+            }
+        }
+
+        return output;
+    }
 }
 
 

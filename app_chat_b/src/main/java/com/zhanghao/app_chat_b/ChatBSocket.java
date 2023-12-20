@@ -15,7 +15,7 @@ public class ChatBSocket {
     private final String TAG = "zh___SocketPull";
 
     // 修改为指定的服务器地址
-    private final String websocket_url = "ws://192.168.101.111:9522";
+    private final String websocket_url = "ws://192.168.101.113:9525";
     private WebSocketClient webSocket;
     private WebSocketCallback webSocketCallback;
 

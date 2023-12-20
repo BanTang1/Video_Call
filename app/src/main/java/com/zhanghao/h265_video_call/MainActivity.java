@@ -5,6 +5,7 @@ import android.media.MediaCodec;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 import androidx.activity.result.ActivityResultCallback;
@@ -111,7 +112,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
             }
         });
 
-        chatASocket = new ChatASocket();
+        chatASocket = new ChatASocket(this);
         chatASocket.start();
 
         handlerThread = new HandlerThread("ImageProcessingThread");
@@ -159,7 +160,7 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
      */
     public void deCode(byte[] data) {
         // 提交数据到解码器
-        int inputBufferID = deMediaCodec.dequeueInputBuffer(10000);
+        int inputBufferID = deMediaCodec.dequeueInputBuffer(1000);
         if (inputBufferID >= 0) {
             ByteBuffer inputBuffer = deMediaCodec.getInputBuffer(inputBufferID);
             assert inputBuffer != null;
@@ -170,11 +171,11 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
 
         // 从解码器获取数据
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-        int outputBufferID = deMediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
+        int outputBufferID = deMediaCodec.dequeueOutputBuffer(bufferInfo, 1000);
         // 即使只提交了一份数据到解码器的输入缓冲区，但解码器的输出并不一定是一一对应的，它可能在一次解码操作中产生多个输出缓冲区
         while (outputBufferID >= 0) {
             deMediaCodec.releaseOutputBuffer(outputBufferID, true);
-            outputBufferID = deMediaCodec.dequeueOutputBuffer(bufferInfo,10000);
+            outputBufferID = deMediaCodec.dequeueOutputBuffer(bufferInfo,1000);
         }
     }
 
@@ -184,24 +185,26 @@ public class MainActivity extends AppCompatActivity implements CameraXUtils.Came
      * @param imageData
      */
     private void encodeYUVToH265(byte[] imageData) {
-        int inputBufferIndex = enMediaCodec.dequeueInputBuffer(10000);
+        int inputBufferIndex = enMediaCodec.dequeueInputBuffer(1000);
         if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = enMediaCodec.getInputBuffer(inputBufferIndex);
             inputBuffer.clear();
-            inputBuffer.put(imageData);
-            enMediaCodec.queueInputBuffer(inputBufferIndex, 0, imageData.length, System.currentTimeMillis(), 0);
+            int length = Math.min(inputBuffer.remaining(), imageData.length);
+            inputBuffer.rewind();
+            inputBuffer.put(imageData, 0, length);
+            enMediaCodec.queueInputBuffer(inputBufferIndex, 0, length, System.currentTimeMillis(), 0);
         }
 
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-        int outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
+        int outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 1000);
         while (outputBufferIndex >= 0) {
             ByteBuffer outputBuffer = enMediaCodec.getOutputBuffer(outputBufferIndex);
             byte[] outputData = new byte[bufferInfo.size];
             outputBuffer.get(outputData);
             handleData(bufferInfo, outputBuffer);
-            writeFile(outputData);
+//            writeFile(outputData);
             enMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
-            outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
+            outputBufferIndex = enMediaCodec.dequeueOutputBuffer(bufferInfo, 1000);
         }
     }
 
